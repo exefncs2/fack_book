@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}QR 碼登入{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1>使用手機掃描 QR 碼登入</h1>
+    
+    <div class="qr-container">
+        <img src="{{ qr_code }}" id="qrCode" alt="QR Code">
+    </div>
+    
+    <div id="statusContainer" class="status-container">
+        <div class="status-icon pending"></div>
+        <p id="statusText">請使用手機掃描上方的 QR 碼</p>
+    </div>
+    
+    <div id="userInfo" class="user-info" style="display: none;">
+        <h2>登入成功！</h2>
+        <p>歡迎回來，<span id="username">用戶</span></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 會話 ID
+    const sessionId = "{{ session_id }}";
+    let socket;
+    let checkInterval;
+    let isAuthenticated = false;
+    
+    // 建立 WebSocket 連接
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/${sessionId}`;
+        
+        socket = new WebSocket(wsUrl);
+        
+        socket.onopen = function() {
+            console.log("WebSocket 連接已建立");
+            // 發送初始檢查
+            socket.send('check');
+        };
+        
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            console.log("收到消息:", data);
+            
+            if (data.status === "authenticated") {
+                showAuthenticated(data.user);
+            } else if (data.status === "expired") {
+                showExpired();
+            }
+        };
+        
+        socket.onclose = function() {
+            console.log("WebSocket 連接已關閉");
+            // 如果還沒有認證且不是因為過期，則使用輪詢作為後備
+            if (!isAuthenticated) {
+                startPolling();
+            }
+        };
+        
+        socket.onerror = function(error) {
+            console.error("WebSocket 錯誤:", error);
+            startPolling();
+        };
+        
+        // 每 5 秒發送一次心跳檢查
+        setInterval(function() {
+            if (socket && socket.readyState === WebSocket.OPEN && !isAuthenticated) {
+                socket.send('check');
+            }
+        }, 5000);
+    }
+    
+    // 啟動輪詢（WebSocket 失敗時的後備方案）
+    function startPolling() {
+        console.log("開始輪詢");
+        if (!checkInterval) {
+            checkInterval = setInterval(pollSessionStatus, 3000);
+        }
+    }
+    
+    // 輪詢會話狀態
+    function pollSessionStatus() {
+        if (isAuthenticated) {
+            clearInterval(checkInterval);
+            return;
+        }
+        
+        fetch(`/api/check-session/${sessionId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('會話已過期');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === "authenticated") {
+                    showAuthenticated(data.user);
+                }
+            })
+            .catch(error => {
+                console.error("輪詢錯誤:", error);
+                showExpired();
+                clearInterval(checkInterval);
+            });
+    }
+    
+    // 顯示認證成功
+    function showAuthenticated(username) {
+        isAuthenticated = true;
+        
+        // 更新 UI
+        document.getElementById('statusContainer').style.display = 'none';
+        document.getElementById('userInfo').style.display = 'block';
+        document.getElementById('username').textContent = username;
+        document.getElementById('qrCode').classList.add('authenticated');
+        
+        // 清除輪詢
+        if (checkInterval) {
+            clearInterval(checkInterval);
+        }
+    }
+    
+    // 顯示會話過期
+    function showExpired() {
+        document.getElementById('statusText').textContent = '會話已過期，請刷新頁面';
+        document.getElementById('statusContainer').className = 'status-container expired';
+    }
+    
+    // 頁面加載完成後執行
+    document.addEventListener('DOMContentLoaded', function() {
+        // 嘗試建立 WebSocket 連接
+        connectWebSocket();
+        
+        // 如果 3 秒後 WebSocket 還未建立連接，則改用輪詢
+        setTimeout(function() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                startPolling();
+            }
+        }, 3000);
+    });
+</script>
+{% endblock %}
