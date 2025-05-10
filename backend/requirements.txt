@@ -37,7 +37,7 @@ fastapi==0.115.12
 fastjsonschema==2.21.1
 filelock==3.13.1
 Flask==3.0.3
-fonttools==4.29.1
+fonttools==4.43.0
 fs==2.4.12
 fsspec==2024.6.1
 gast==0.5.2
