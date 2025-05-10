@@ -20,7 +20,7 @@ comm==0.2.2
 command-not-found==0.3
 ConfigArgParse==1.7
 confluent-kafka==2.8.2
-cryptography==3.4.8
+cryptography==44.0.1
 cupshelpers==1.0
 cycler==0.11.0
 dash==3.0.2
