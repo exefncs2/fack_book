@@ -185,7 +185,7 @@ wadllib==1.3.6
 wcwidth==0.2.13
 webencodings==0.5.1
 websockets==15.0.1
-Werkzeug==3.0.6
+Werkzeug==3.1.5
 widgetsnbextension==4.0.14
 xdg==5
 xkit==0.0.0
