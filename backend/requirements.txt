@@ -35,7 +35,7 @@ executing==2.2.0
 fail2ban==0.11.2
 fastapi==0.115.12
 fastjsonschema==2.21.1
-filelock==3.13.1
+filelock==3.20.3
 Flask==3.0.3
 fonttools==4.29.1
 fs==2.4.12
